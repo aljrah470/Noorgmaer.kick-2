@@ -13,8 +13,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 app = Flask(__name__)
 
-USERNAME = "aljrah46"  # تم التغيير هنا
-PASSWORD = "123456789Mmm."  # تم التغيير هنا
+USERNAME = "aljrah46"
+PASSWORD = "123456789Mmm."
 STREAM_URL = "https://kick.com/noorgamer/chat"
 
 def save_cookies(driver, path="cookies.pkl"):
@@ -55,6 +55,18 @@ def random_human_behavior(driver):
         except Exception as e:
             print("تحريك الماوس فشل:", e)
 
+def is_stream_online(driver):
+    """يتحقق إذا البث شغال أو لا"""
+    try:
+        # يبحث عن نص "Offline" أو رسالة أن البث مغلق
+        offline_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'offline') or contains(text(), 'Offline') or contains(text(), 'Stream ended')]")
+        if offline_elements:
+            return False
+        return True
+    except Exception as e:
+        print("خطأ أثناء فحص حالة البث:", e)
+        return True  # يعتبره شغال حتى لا يعطل
+
 def start_bot():
     print("جاري تشغيل البوت ومحاولة الدخول إلى البث...")
     options = Options()
@@ -83,8 +95,17 @@ def start_bot():
         start_time = time.time()
         while time.time() - start_time < 8 * 60 * 60:  # يراقب 8 ساعات
             random_human_behavior(driver)
-            time.sleep(random.randint(30, 60))
-        
+
+            # فحص البث كل دقيقة
+            if not is_stream_online(driver):
+                print("البث مغلق ❌ .. جاري عمل Refresh...")
+                driver.refresh()
+                time.sleep(10)  # يعطي فرصة للتحميل
+            else:
+                print("البث لا زال شغال ✅")
+            
+            time.sleep(60)  # ينتظر دقيقة قبل التحقق من جديد
+
         print("انتهى الوقت المحدد. جاري إغلاق البوت...")
 
     except Exception as e:
