@@ -13,9 +13,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 app = Flask(__name__)
 
-USERNAME = "aljrah46"
-PASSWORD = "123456789Mmm."
-STREAM_URL = "https://kick.com/noorgamer/chat"
+USERNAME = "aljrah46"  # اسم المستخدم
+PASSWORD = "123456789Mmm."  # كلمة المرور
+STREAM_URL = "https://kick.com/noorgamer"  # رابط البث الصحيح
 
 def save_cookies(driver, path="cookies.pkl"):
     with open(path, "wb") as file:
@@ -45,32 +45,31 @@ def login(driver):
 def random_human_behavior(driver):
     """يحرك الماوس بشكل خفيف وعشوائي داخل الصفحة"""
     actions = ActionChains(driver)
-    for _ in range(random.randint(1, 3)):
-        x_offset = random.randint(-100, 100)
-        y_offset = random.randint(-100, 100)
+    for _ in range(random.randint(1, 2)):
+        x_offset = random.randint(-50, 50)
+        y_offset = random.randint(-50, 50)
         try:
             actions.move_by_offset(x_offset, y_offset).perform()
             actions.reset_actions()
-            time.sleep(random.uniform(1, 3))
+            time.sleep(random.uniform(1, 2))
         except Exception as e:
             print("تحريك الماوس فشل:", e)
 
-def is_stream_online(driver):
-    """يتحقق إذا البث شغال أو لا"""
+def click_play_button_if_exists(driver):
+    """يحاول الضغط على زر التشغيل إذا كان موجود"""
     try:
-        # يبحث عن نص "Offline" أو رسالة أن البث مغلق
-        offline_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'offline') or contains(text(), 'Offline') or contains(text(), 'Stream ended')]")
-        if offline_elements:
-            return False
-        return True
+        play_button = driver.find_element(By.CSS_SELECTOR, "button[data-testid='play-button']")
+        if play_button.is_displayed():
+            play_button.click()
+            print("تم الضغط على زر التشغيل")
+            time.sleep(2)
     except Exception as e:
-        print("خطأ أثناء فحص حالة البث:", e)
-        return True  # يعتبره شغال حتى لا يعطل
+        print("لم يتم العثور على زر التشغيل:", e)
 
 def start_bot():
     print("جاري تشغيل البوت ومحاولة الدخول إلى البث...")
     options = Options()
-    options.add_argument("--headless")
+    options.add_argument("--headless")  # بدون واجهة رسومية
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-blink-features=AutomationControlled")
@@ -90,22 +89,19 @@ def start_bot():
             login(driver)
         
         driver.get(STREAM_URL)
-        print("تم الدخول إلى البث بنجاح!")
+        time.sleep(8)
         
+        # محاولة تشغيل الفيديو إذا لم يكن يعمل
+        click_play_button_if_exists(driver)
+        
+        print("تم الدخول إلى البث بنجاح!")
+
         start_time = time.time()
-        while time.time() - start_time < 8 * 60 * 60:  # يراقب 8 ساعات
+        while time.time() - start_time < 8 * 60 * 60:  # البقاء 8 ساعات
             random_human_behavior(driver)
-
-            # فحص البث كل دقيقة
-            if not is_stream_online(driver):
-                print("البث مغلق ❌ .. جاري عمل Refresh...")
-                driver.refresh()
-                time.sleep(10)  # يعطي فرصة للتحميل
-            else:
-                print("البث لا زال شغال ✅")
-            
-            time.sleep(60)  # ينتظر دقيقة قبل التحقق من جديد
-
+            time.sleep(random.randint(30, 60))
+            click_play_button_if_exists(driver)  # يحاول ضغط زر التشغيل كل فترة للتأكد
+        
         print("انتهى الوقت المحدد. جاري إغلاق البوت...")
 
     except Exception as e:
